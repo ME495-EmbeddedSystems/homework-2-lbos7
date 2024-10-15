@@ -33,18 +33,4 @@
             </geometry>
         </collision>
     </link>
-
-    <link name="platform">
-        <visual>
-            <geometry>
-                <cylinder length=".1" radius=".25"/>
-            </geometry>
-            <material name="blue"/>
-        </visual>
-        <collision>
-            <geometry>
-                <cylinder length=".1" radius=".25"/>
-            </geometry>
-        </collision>
-    </link>
 </robot>
