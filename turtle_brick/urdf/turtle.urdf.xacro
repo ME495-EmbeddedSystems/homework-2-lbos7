@@ -26,6 +26,7 @@
                 <box size="0.3 0.3 0.3"/>
             </geometry>
             <material name="red"/>
+            <origin xyz="0 0 .5"/>
         </visual>
         <collision>
             <geometry>
@@ -33,4 +34,67 @@
             </geometry>
         </collision>
     </link>
+
+    <link name="platform">
+        <visual>
+            <geometry>
+                <cylinder length=".05" radius=".35"/>
+            </geometry>
+            <material name="blue"/>
+        </visual>
+        <collision>
+            <geometry>
+                <cylinder length=".05" radius=".35"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="base_to_platform" type="continuous">
+        <parent link="base_link"/>
+        <child link="platform"/>
+        <origin xyz="0 0 1"/>
+    </joint>
+
+    <link name="stem">
+        <visual>
+            <geometry>
+                <cylinder length=".05" radius=".1"/>
+            </geometry>
+            <material name="green"/>
+        </visual>
+        <collision>
+            <geometry>
+                <cylinder length=".05" radius=".1"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="base_to_stem" type="continuous">
+        <parent link="base_link"/>
+        <child link="stem"/>
+        <origin xyz="0 0 .325"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+    
+    <link name="wheel">
+        <visual>
+            <geometry>
+                <cylinder length=".1" radius=".15"/>
+            </geometry>
+            <material name="white"/>
+        </visual>
+        <collision>
+            <geometry>
+                <cylinder length=".1" radius=".15"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="stem_to_wheel" type="continuous">
+        <parent link="stem"/>
+        <child link="wheel"/>
+        <origin rpy="1.57075 0 0" xyz="0 0 -.175"/>
+        <axis xyz="0 0 1"/>
+    </joint>
+
 </robot>
