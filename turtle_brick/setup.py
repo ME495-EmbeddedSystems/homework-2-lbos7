@@ -11,6 +11,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml',
                                    'launch/show_turtle.launch.xml',
+                                   'launch/show_turtle.launch.py',
                                    'urdf/turtle.urdf.xacro',
                                    'config/view_robot.rviz']),
     ],

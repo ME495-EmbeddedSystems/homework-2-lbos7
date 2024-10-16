@@ -81,7 +81,7 @@
             <geometry>
                 <cylinder length=".1" radius=".15"/>
             </geometry>
-            <material name="white"/>
+            <material name="black"/>
         </visual>
         <collision>
             <geometry>
