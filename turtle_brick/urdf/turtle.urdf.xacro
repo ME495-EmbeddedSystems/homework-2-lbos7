@@ -1,4 +1,9 @@
 <robot name="turtle" xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:property name="turtle_yaml" value="$(find turtle_brick)/turtle.yaml"/>
+    <xacro:property name="yaml_dict" value="${xacro.load_yaml(turtle_yaml)['/**']['ros__parameters']}"/>
+    <xacro:property name="platform_height" value="${yaml_dict['platform_height']}"/>
+    <xacro:property name="wheel_radius" value="${yaml_dict['wheel_radius']}"/>
+    <xacro:property name="side_length" value="0.3"/>
 
     <material name="blue">
         <color rgba="0 0 0.8 1"/>
@@ -20,39 +25,65 @@
         <color rgba="0 0 0 1"/>
     </material>
 
+    <material name="magenta">
+        <color rgba="0.8 0 0.8 1"/>
+    </material>
+
     <link name="base_link">
         <visual>
             <geometry>
-                <box size="0.3 0.3 0.3"/>
+                <box size="${side_length} ${side_length} ${side_length}"/>
             </geometry>
             <material name="red"/>
-            <origin xyz="0 0 .5"/>
+            <origin xyz="0 0 ${wheel_radius*2 + .05 + side_length/2}"/>
         </visual>
         <collision>
             <geometry>
-                <box size="0.3 0.3 0.3"/>
+                <box size="${side_length} ${side_length} ${side_length}"/>
             </geometry>
         </collision>
     </link>
 
+    <link name="base_platform_connector">
+        <visual>
+            <geometry>
+                <cylinder length="${platform_height -.05 - (wheel_radius*2 + .05 + side_length)}" radius=".05"/>
+            </geometry>
+            <material name="magenta"/>
+        </visual>
+        <collision>
+            <geometry>
+                <cylinder length=".05" radius=".35"/>
+            </geometry>
+        </collision>
+    </link>
+
+    <joint name="base_to_connector" type="fixed">
+        <parent link="base_link"/>
+        <child link="base_platform_connector"/>
+        <origin xyz="0 0 ${(platform_height - .05 - (wheel_radius*2 + .05 + side_length))/2 + wheel_radius*2 + .05 + side_length}"/>
+    </joint>
+
     <link name="platform">
         <visual>
             <geometry>
-                <cylinder length=".05" radius=".35"/>
+                <cylinder length=".1" radius=".35"/>
             </geometry>
             <material name="blue"/>
         </visual>
         <collision>
             <geometry>
-                <cylinder length=".05" radius=".35"/>
+                <cylinder length=".1" radius=".35"/>
             </geometry>
         </collision>
     </link>
 
-    <joint name="base_to_platform" type="continuous">
-        <parent link="base_link"/>
+    <joint name="connector_to_platform" type="revolute">
+        <parent link="base_platform_connector"/>
         <child link="platform"/>
-        <origin xyz="0 0 1"/>
+        <origin xyz="0 0 ${(platform_height - .05 - (wheel_radius*2 + side_length))/2}"/>
+        <limit effort="1000.0" lower="${-pi/4}" upper="${pi/4}" velocity="0.5"/>
+        <axis xyz="1 0 0"/>
     </joint>
 
     <link name="stem">
@@ -72,20 +103,20 @@
     <joint name="base_to_stem" type="continuous">
         <parent link="base_link"/>
         <child link="stem"/>
-        <origin xyz="0 0 .325"/>
+        <origin xyz="0 0 ${wheel_radius*2 + .025}"/>
         <axis xyz="0 0 1"/>
     </joint>
     
     <link name="wheel">
         <visual>
             <geometry>
-                <cylinder length=".1" radius=".15"/>
+                <cylinder length=".1" radius="${wheel_radius}"/>
             </geometry>
             <material name="black"/>
         </visual>
         <collision>
             <geometry>
-                <cylinder length=".1" radius=".15"/>
+                <cylinder length=".1" radius="${wheel_radius}"/>
             </geometry>
         </collision>
     </link>
@@ -93,7 +124,7 @@
     <joint name="stem_to_wheel" type="continuous">
         <parent link="stem"/>
         <child link="wheel"/>
-        <origin rpy="1.57075 0 0" xyz="0 0 -.175"/>
+        <origin rpy="${-pi/2} 0 0" xyz="0 0 ${-1*(wheel_radius + .025)}"/>
         <axis xyz="0 0 1"/>
     </joint>
 
