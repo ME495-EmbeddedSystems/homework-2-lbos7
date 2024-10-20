@@ -8,7 +8,7 @@ from launch_ros.substitutions import ExecutableInPackage, FindPackageShare
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument("robot", default_value='turtle', description="The xacro file to load"),
+        DeclareLaunchArgument("use_jsp", default_value='gui', description="Which method of publishing joints: 'gui' (default), 'jsp', or 'none'"),
         Node(
             package="robot_state_publisher",
             executable="robot_state_publisher",
@@ -23,8 +23,22 @@ def generate_launch_description():
             ]
         ),
         Node(
-            package="joint_state_publisher_gui",
-            executable="joint_state_publisher_gui"
+            package=IfElseSubstitution(
+                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "gui"),
+                        if_value="joint_state_publisher_gui",
+                        else_value=IfElseSubstitution(
+                                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "jsp"),
+                                        if_value="joint_state_publisher"
+                                        )
+                        ),
+            executable=IfElseSubstitution(
+                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "gui"),
+                        if_value="joint_state_publisher_gui",
+                        else_value=IfElseSubstitution(
+                                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "jsp"),
+                                        if_value="joint_state_publisher"
+                                        )
+                        )
         ),
         Node(
             package="rviz2",

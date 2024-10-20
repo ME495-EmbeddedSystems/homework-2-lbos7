@@ -12,6 +12,7 @@ setup(
         ('share/' + package_name, ['package.xml',
                                    'launch/show_turtle.launch.xml',
                                    'launch/show_turtle.launch.py',
+                                   'launch/run_turtle.launch.xml',
                                    'urdf/turtle.urdf.xacro',
                                    'config/view_robot.rviz',
                                    'config/turtle.yaml']),
@@ -20,11 +21,12 @@ setup(
     zip_safe=True,
     maintainer='lbos7',
     maintainer_email='loganstuartboswell@gmail.com',
-    description='TODO: Package description',
+    description='A ROS 2 package for controlling a robot to catch a brick in rviz2',
     license='GPLv3',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'turtle_robot = turtle_brick.turtle_robot:main'
         ],
     },
 )

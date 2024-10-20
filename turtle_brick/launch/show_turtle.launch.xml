@@ -1,4 +1,5 @@
 <launch>
+    <arg name="use_jsp" default="gui" description="Which method of publishing joints: gui (default), jsp, or none"/>
 
     <node pkg="robot_state_publisher" exec="robot_state_publisher">
     <!-- load the urdf into the parameter server -->
@@ -8,7 +9,11 @@
 
     <!-- The joint state publisher will be launched with a gui, read the urdf from /robot_description
         and publish the joint values on /joint_states -->
-    <node pkg="joint_state_publisher_gui" exec="joint_state_publisher_gui"/>
+    <group unless="$(eval '\'$(var use_jsp)\'==\'none\'')">
+        <node pkg="joint_state_publisher_gui" exec="joint_state_publisher_gui" if="$(eval '\'$(var use_jsp)\'==\'gui\'')"/>
+
+        <node pkg="joint_state_publisher" exec="joint_state_publisher" if="$(eval '\'$(var use_jsp)\'==\'jsp\'')"/>
+    </group>
 
     <!-- rviz will enable us to see the robot -->
     <node pkg="rviz2" exec="rviz2" args="-d $(find-pkg-share turtle_brick)/view_robot.rviz"/>
