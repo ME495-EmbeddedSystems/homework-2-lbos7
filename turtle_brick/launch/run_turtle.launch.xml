@@ -1,16 +1,19 @@
 <launch>
 
-    <node pkg="turtlesim" exec="turtlesim_node">
+    <group>
+        <include file="$(find-pkg-share turtle_brick)/show_turtle.launch.xml" >
+            <arg name="use_jsp" value="jsp"/>
+        </include>
+    </group>
+
+        <node pkg="turtlesim" exec="turtlesim_node">
         <param name="holonomic" value="True"/>
     </node>
 
     <node pkg="turtle_brick" exec="turtle_robot">
         <remap from="cmd_vel" to="turtle1/cmd_vel"/>
+        <remap from="pose" to="turtle1/pose"/>
+        <remap from="joint_states" to="/joint_states"/>
     </node>
-
-    <group>
-        <include file="$(find-pkg-share turtle_brick)/show_turtle.launch.xml" >
-        </include>
-    </group>
 
 </launch>
