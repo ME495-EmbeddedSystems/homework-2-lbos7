@@ -9,6 +9,7 @@ from sensor_msgs.msg import JointState
 from tf2_ros import TransformBroadcaster
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from enum import Enum, auto
+import math
 from math import pi
 
 class State(Enum):
@@ -23,9 +24,20 @@ class Turtle_Robot(Node):
     def __init__(self):
         super().__init__('turtle_robot')
         qos = QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+
+        self.declare_parameter('platform_height', 1.1)
+        self.declare_parameter('wheel_radius', .15)
+        self.declare_parameter('max_velocity', 5.0)
+        self.declare_parameter('gravity_accel', 9.81)
+        self.platform_height = self.get_parameter('platform_height').value
+        self.wheel_radius = self.get_parameter('wheel_radius').value
+        self.max_velocity = self.get_parameter('max_velocity').value
+        self.gravity_accel = self.get_parameter('gravity_accel').value
+        
+
         self.tmr = self.create_timer(1/100, self.timer_callback)
         self.pose_sub = self.create_subscription(Pose, 'pose', self.pose_callback, 10)
-        self.goal_pose_sub = self.create_subscription(PoseStamped, 'goal_pos', self.goal_pose_callback, 10)
+        self.goal_pose_sub = self.create_subscription(PoseStamped, 'goal_pose', self.goal_pose_callback, 10)
         self.tilt_sub = self.create_subscription(Tilt, 'tilt', self.tilt_callback, 10)
         self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
         self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
@@ -37,10 +49,18 @@ class Turtle_Robot(Node):
         self.pose = []
         self.prev_pose = []
         self.goalpose = []
-        self.tilt = 0
+        self.prev_goalpose = []
+        self.goal_pose_set = False
+        self.arrived_at_pose = False
+        self.tilt = 0.0
         self.start_x = 5.544
         self.start_y = 5.544
         self.val = 1.0
+        self.stem_ang = 0.0
+        self.distance_error = 0.0
+        self.gain = 1
+        self.minimum_vel = 2.0
+        self.threshold = .05
 
         world_odom_tf = TransformStamped()
         world_odom_tf.header.stamp = self.get_clock().now().to_msg()
@@ -57,39 +77,92 @@ class Turtle_Robot(Node):
         odom_base_tf.child_frame_id = 'base_link'
         self.static_tf_broadcaster.sendTransform(odom_base_tf)
 
-        # odom_base_tf = TransformStamped()
-        # odom_base_tf.header.stamp = self.get_clock().now().to_msg()
-        # odom_base_tf.header.frame_id = 'odom'
-        # odom_base_tf.child_frame_id = 'base_link'
-        # world_odom_tf.transform.translation.x = 0
-        # world_odom_tf.transform.translation.y = 0
-        # self.tf_broadcaster.sendTransform(odom_base_tf)
-
-        # joint_state = JointState()
-        # joint_state.header.stamp = self.get_clock().now().to_msg()
-        # joint_state.name = ['connector_to_platform', 'base_to_stem', 'stem_to_wheel']
-        # joint_state.position = [0, 0, 0]
-
-        # self.joint_state_pub.publish(joint_state)
-
 
     def timer_callback(self):
+
+        joint_state = JointState()
+        joint_state.name = ['connector_to_platform', 'base_to_stem', 'stem_to_wheel']
+
         if type(self.pose) != type([]):
+            if not self.state == State.STOPPED:
 
-            if self.pose.x > 9:
-                self.val = -1.0
-            elif self.pose.x < 2:
-                self.val = 1.0
-            self.vel_pub.publish(Twist(linear=Vector3(x=self.val, y=0.0), angular=Vector3(z=0.0)))
-            joint_state = JointState()
-            joint_state.name = ['connector_to_platform', 'base_to_stem', 'stem_to_wheel']
-            joint_state.position = [0, 0, (self.pose.x - self.start_x)/.15]
-            joint_state.velocity = [0, 0, 1/.15]
+                self.distance_error = math.dist([self.goalpose.pose.position.x, self.goalpose.pose.position.y], [self.pose.x, self.pose.y])
+                self.stem_ang = math.atan2(self.goalpose.pose.position.y - self.pose.y, self.goalpose.pose.position.x - self.pose.x)
 
-            time = self.get_clock().now().to_msg()
-            joint_state.header.stamp = time
+                if self.stem_ang > math.pi:
+                    self.stem_ang = self.stem_ang - 2*math.pi
+                elif self.stem_ang < -math.pi:
+                    self.stem_ang = 2*math.pi + self.stem_ang
 
-            self.joint_state_pub.publish(joint_state)
+                if type(self.prev_goalpose) == type([]):
+                    joint_state.position = [0,
+                                            self.stem_ang,
+                                            math.dist([self.pose.x, self.pose.y],
+                                                      [self.start_x, self.start_y])/self.wheel_radius]
+                else:
+                    joint_state.position = [0,
+                                            self.stem_ang,
+                                            math.dist([self.pose.x, self.pose.y],
+                                                      [self.prev_goalpose.pose.position.x, self.prev_goalpose.pose.position.x])/self.wheel_radius]
+
+                if self.distance_error*self.gain > self.max_velocity:
+                    self.vel_pub.publish(
+                        Twist(linear=Vector3(x=self.max_velocity*math.cos(self.stem_ang),
+                                            y=self.max_velocity*math.sin(self.stem_ang)),
+                            angular=Vector3(z=0.0)))
+                    joint_state.velocity = [0, 0, self.max_velocity/self.wheel_radius]
+                else:
+                    self.vel_pub.publish(
+                        Twist(linear=Vector3(x=max(self.distance_error*self.gain,
+                                                self.minimum_vel)*math.cos(self.stem_ang),
+                                            y=max(self.distance_error*self.gain,
+                                                self.minimum_vel)*math.sin(self.stem_ang)),
+                            angular=Vector3(z=0.0)))
+                    joint_state.velocity = [0,
+                                            0,
+                                            max(self.distance_error*self.gain, self.minimum_vel)/self.wheel_radius]
+            else:
+                self.vel_pub.publish(
+                        Twist(linear=Vector3(x=0.0, y=0.0),
+                            angular=Vector3(z=0.0)))
+                if type(self.prev_goalpose) == type([]):
+                    joint_state.position = [0,
+                                            self.stem_ang,
+                                            math.dist([self.pose.x, self.pose.y],
+                                                      [self.start_x, self.start_y])/self.wheel_radius]
+                else:
+                    joint_state.position = [0,
+                                            self.stem_ang,
+                                            math.dist([self.pose.x, self.pose.y],
+                                                      [self.prev_goalpose.pose.position.x, self.prev_goalpose.pose.position.x])/self.wheel_radius]
+                joint_state.velocity = [0, 0, 0]
+        else:
+            joint_state.position = [0, 0, 0]
+
+        if self.distance_error < self.threshold:
+            self.state = State.STOPPED
+
+        time = self.get_clock().now().to_msg()
+        joint_state.header.stamp = time
+        self.joint_state_pub.publish(joint_state)
+
+
+        # if type(self.pose) != type([]):
+
+        #     if self.pose.x > 9:
+        #         self.val = -1.0
+        #     elif self.pose.x < 2:
+        #         self.val = 1.0
+        #     self.vel_pub.publish(Twist(linear=Vector3(x=self.val*.5*(2**.5), y=self.val*.5*(2**.5)), angular=Vector3(z=0.0)))
+        #     joint_state = JointState()
+        #     joint_state.name = ['connector_to_platform', 'base_to_stem', 'stem_to_wheel']
+        #     joint_state.position = [0, .5*(2**.5), (self.pose.x - self.start_x)/self.wheel_radius]
+        #     joint_state.velocity = [0, 0, 1/self.wheel_radius]
+
+        #     time = self.get_clock().now().to_msg()
+        #     joint_state.header.stamp = time
+
+        #     self.joint_state_pub.publish(joint_state)
 
 
     def pose_callback(self, pose):
@@ -106,14 +179,17 @@ class Turtle_Robot(Node):
             odom_base_tf.header.frame_id = 'odom'
             odom_base_tf.child_frame_id = 'base_link'
             odom_base_tf.transform.translation.x = self.pose.x - self.start_x
+            odom_base_tf.transform.translation.y = self.pose.y - self.start_y
             self.tf_broadcaster.sendTransform(odom_base_tf)
     
     def goal_pose_callback(self, goalpose):
-        self.goalpose = goalpose
+        if type(goalpose) != type([]) and self.goalpose != goalpose:
+            self.prev_goalpose = self.goalpose
+            self.goalpose = goalpose
+            self.state = State.MOVING
 
     def tilt_callback(self, tilt):
         self.tilt = tilt
-
 
 
 def main(args=None):

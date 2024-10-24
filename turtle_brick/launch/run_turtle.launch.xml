@@ -13,7 +13,9 @@
     <node pkg="turtle_brick" exec="turtle_robot">
         <remap from="cmd_vel" to="turtle1/cmd_vel"/>
         <remap from="pose" to="turtle1/pose"/>
-        <remap from="joint_states" to="/joint_states"/>
+        <remap from="joint_states" to="joint_states"/>
+        <remap from="goal_pose" to="goal_pose"/>
+        <param from="$(find-pkg-share turtle_brick)/turtle.yaml"/>
     </node>
 
 </launch>
