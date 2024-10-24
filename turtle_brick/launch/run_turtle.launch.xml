@@ -15,6 +15,7 @@
         <remap from="pose" to="turtle1/pose"/>
         <remap from="joint_states" to="joint_states"/>
         <remap from="goal_pose" to="goal_pose"/>
+        <remap from="tilt" to="tilt"/>
         <param from="$(find-pkg-share turtle_brick)/turtle.yaml"/>
     </node>
 

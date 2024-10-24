@@ -102,7 +102,7 @@ class Turtle_Robot(Node):
                     self.stem_ang = 2*math.pi + self.stem_ang
 
                 if type(self.prev_goalpose) == type([]):
-                    joint_state.position = [0,
+                    joint_state.position = [self.tilt,
                                             self.stem_ang,
                                             math.dist([self.pose.x, self.pose.y],
                                                       [self.start_x, self.start_y])/self.wheel_radius]
@@ -113,7 +113,7 @@ class Turtle_Robot(Node):
                     elif self.prev_goalpose.header.frame_id == 'world':
                         prev_goalpose_x = self.prev_goalpose.pose.position.x
                         prev_goalpose_y = self.prev_goalpose.pose.position.y
-                    joint_state.position = [0,
+                    joint_state.position = [self.tilt,
                                             self.stem_ang,
                                             math.dist([self.pose.x, self.pose.y],
                                                       [prev_goalpose_x, prev_goalpose_y])/self.wheel_radius]
@@ -139,7 +139,7 @@ class Turtle_Robot(Node):
                         Twist(linear=Vector3(x=0.0, y=0.0),
                             angular=Vector3(z=0.0)))
                 if type(self.prev_goalpose) == type([]):
-                    joint_state.position = [0,
+                    joint_state.position = [self.tilt,
                                             self.stem_ang,
                                             math.dist([self.pose.x, self.pose.y],
                                                       [self.start_x, self.start_y])/self.wheel_radius]
@@ -150,13 +150,13 @@ class Turtle_Robot(Node):
                     elif self.prev_goalpose.header.frame_id == 'world':
                         prev_goalpose_x = self.prev_goalpose.pose.position.x
                         prev_goalpose_y = self.prev_goalpose.pose.position.y
-                    joint_state.position = [0,
+                    joint_state.position = [self.tilt,
                                             self.stem_ang,
                                             math.dist([self.pose.x, self.pose.y],
                                                       [prev_goalpose_x, prev_goalpose_y])/self.wheel_radius]
                 joint_state.velocity = [0, 0, 0]
         else:
-            joint_state.position = [0, 0, 0]
+            joint_state.position = [self.tilt, 0, 0]
 
         if self.distance_error < self.threshold:
             self.state = State.STOPPED
