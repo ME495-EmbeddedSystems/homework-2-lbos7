@@ -86,8 +86,15 @@ class Turtle_Robot(Node):
         if type(self.pose) != type([]):
             if not self.state == State.STOPPED:
 
-                self.distance_error = math.dist([self.goalpose.pose.position.x, self.goalpose.pose.position.y], [self.pose.x, self.pose.y])
-                self.stem_ang = math.atan2(self.goalpose.pose.position.y - self.pose.y, self.goalpose.pose.position.x - self.pose.x)
+                if self.goalpose.header.frame_id == 'odom':
+                    goalpose_x = self.goalpose.pose.position.x + self.start_x
+                    goalpose_y = self.goalpose.pose.position.y + self.start_y
+                elif self.goalpose.header.frame_id == 'world':
+                    goalpose_x = self.goalpose.pose.position.x
+                    goalpose_y = self.goalpose.pose.position.y
+
+                self.distance_error = math.dist([goalpose_x, goalpose_y], [self.pose.x, self.pose.y])
+                self.stem_ang = math.atan2(goalpose_y - self.pose.y, goalpose_x - self.pose.x)
 
                 if self.stem_ang > math.pi:
                     self.stem_ang = self.stem_ang - 2*math.pi
@@ -100,10 +107,16 @@ class Turtle_Robot(Node):
                                             math.dist([self.pose.x, self.pose.y],
                                                       [self.start_x, self.start_y])/self.wheel_radius]
                 else:
+                    if self.prev_goalpose.header.frame_id == 'odom':
+                        prev_goalpose_x = self.prev_goalpose.pose.position.x + self.start_x
+                        prev_goalpose_y = self.prev_goalpose.pose.position.y + self.start_y
+                    elif self.prev_goalpose.header.frame_id == 'world':
+                        prev_goalpose_x = self.prev_goalpose.pose.position.x
+                        prev_goalpose_y = self.prev_goalpose.pose.position.y
                     joint_state.position = [0,
                                             self.stem_ang,
                                             math.dist([self.pose.x, self.pose.y],
-                                                      [self.prev_goalpose.pose.position.x, self.prev_goalpose.pose.position.x])/self.wheel_radius]
+                                                      [prev_goalpose_x, prev_goalpose_y])/self.wheel_radius]
 
                 if self.distance_error*self.gain > self.max_velocity:
                     self.vel_pub.publish(
@@ -131,10 +144,16 @@ class Turtle_Robot(Node):
                                             math.dist([self.pose.x, self.pose.y],
                                                       [self.start_x, self.start_y])/self.wheel_radius]
                 else:
+                    if self.prev_goalpose.header.frame_id == 'odom':
+                        prev_goalpose_x = self.prev_goalpose.pose.position.x + self.start_x
+                        prev_goalpose_y = self.prev_goalpose.pose.position.y + self.start_y
+                    elif self.prev_goalpose.header.frame_id == 'world':
+                        prev_goalpose_x = self.prev_goalpose.pose.position.x
+                        prev_goalpose_y = self.prev_goalpose.pose.position.y
                     joint_state.position = [0,
                                             self.stem_ang,
                                             math.dist([self.pose.x, self.pose.y],
-                                                      [self.prev_goalpose.pose.position.x, self.prev_goalpose.pose.position.x])/self.wheel_radius]
+                                                      [prev_goalpose_x, prev_goalpose_y])/self.wheel_radius]
                 joint_state.velocity = [0, 0, 0]
         else:
             joint_state.position = [0, 0, 0]
@@ -145,24 +164,6 @@ class Turtle_Robot(Node):
         time = self.get_clock().now().to_msg()
         joint_state.header.stamp = time
         self.joint_state_pub.publish(joint_state)
-
-
-        # if type(self.pose) != type([]):
-
-        #     if self.pose.x > 9:
-        #         self.val = -1.0
-        #     elif self.pose.x < 2:
-        #         self.val = 1.0
-        #     self.vel_pub.publish(Twist(linear=Vector3(x=self.val*.5*(2**.5), y=self.val*.5*(2**.5)), angular=Vector3(z=0.0)))
-        #     joint_state = JointState()
-        #     joint_state.name = ['connector_to_platform', 'base_to_stem', 'stem_to_wheel']
-        #     joint_state.position = [0, .5*(2**.5), (self.pose.x - self.start_x)/self.wheel_radius]
-        #     joint_state.velocity = [0, 0, 1/self.wheel_radius]
-
-        #     time = self.get_clock().now().to_msg()
-        #     joint_state.header.stamp = time
-
-        #     self.joint_state_pub.publish(joint_state)
 
 
     def pose_callback(self, pose):
@@ -189,7 +190,8 @@ class Turtle_Robot(Node):
             self.state = State.MOVING
 
     def tilt_callback(self, tilt):
-        self.tilt = tilt
+        if self.tilt != tilt:
+            self.tilt = tilt
 
 
 def main(args=None):
