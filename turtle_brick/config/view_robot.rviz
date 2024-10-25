@@ -6,14 +6,11 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /Grid1
         - /Grid1/Offset1
-        - /RobotModel1
-        - /RobotModel1/Status1
         - /RobotModel1/Description Topic1
-        - /TF1
         - /TF1/Frames1
         - /TF1/Tree1
+        - /MarkerArray1/Topic1
       Splitter Ratio: 0.5
     Tree Height: 707
   - Class: rviz_common/Selection
@@ -117,11 +114,15 @@ Visualization Manager:
           Value: true
         base_platform_connector:
           Value: true
+        odom:
+          Value: true
         platform:
           Value: true
         stem:
           Value: true
         wheel:
+          Value: true
+        world:
           Value: true
       Marker Scale: 1
       Name: TF
@@ -129,8 +130,28 @@ Visualization Manager:
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        world:
+          odom:
+            base_link:
+              base_platform_connector:
+                platform:
+                  {}
+              stem:
+                wheel:
+                  {}
       Update Interval: 0
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        "": true
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: visualization_marker_array
       Value: true
   Enabled: true
   Global Options:
@@ -178,7 +199,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 12.476226806640625
+      Distance: 24.559242248535156
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -193,10 +214,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.33539843559265137
+      Pitch: 0.3447974920272827
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.798549175262451
+      Yaw: 4.838548183441162
     Saved: ~
 Window Geometry:
   Displays:

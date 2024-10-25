@@ -1,0 +1,11 @@
+<launch>
+
+    <group>
+        <include file="$(find-pkg-share turtle_brick)/run_turtle.launch.xml" />
+    </group>
+
+    <node pkg="turtle_brick" exec="arena" >
+        <remap from="visualization_marker_array" to="visualization_marker_array" />
+    </node>
+
+</launch>
