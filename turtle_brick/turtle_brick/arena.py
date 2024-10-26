@@ -5,9 +5,19 @@ from geometry_msgs.msg import TransformStamped
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from visualization_msgs.msg import Marker, MarkerArray
-# from physics import World
+from turtle_brick.physics import World
 from turtle_brick_interfaces.srv import Place
-from std_msgs.msg import Empty
+from std_srvs.srv import Empty
+from enum import Enum, auto
+
+class State(Enum):
+    """ Current state of the system.
+        Determines what the main timer function should be doing on each iteration
+    """
+    STOPPED = auto(),
+    PLACED = auto(),
+    CAUGHT = auto(),
+    FALLING = auto()
 
 class Arena(Node):
 
@@ -15,13 +25,23 @@ class Arena(Node):
         super().__init__('arena')
         qos = QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
 
+        self.declare_parameter('platform_height', 1.1)
+        self.declare_parameter('wheel_radius', .15)
+        self.declare_parameter('max_velocity', 5.0)
+        self.declare_parameter('gravity_accel', 9.81)
+        self.platform_height = self.get_parameter('platform_height').value
+        self.wheel_radius = self.get_parameter('wheel_radius').value
+        self.max_velocity = self.get_parameter('max_velocity').value
+        self.gravity_accel = self.get_parameter('gravity_accel').value
+
         self.timer = self.create_timer(1/250, self.timer_callback)
         self.marker_pub = self.create_publisher(Marker, 'visualization_marker', qos)
         self.marker_array_pub = self.create_publisher(MarkerArray, 'visualization_marker_array', qos)
         self.place_service = self.create_service(Place, 'place', self.place_callback)
-        # self.drop_service = self.create_service(Empty, 'drop', self.drop_callback)
+        self.drop_service = self.create_service(Empty, 'drop', self.drop_callback)
 
-        self.brick_location = []
+        self.state = State.STOPPED
+        self.world_phys = []
 
         self.brick = Marker()
         self.brick.header.frame_id = 'world'
@@ -129,10 +149,29 @@ class Arena(Node):
         self.marker_array_pub.publish(self.m_array)
 
     def timer_callback(self):
-        pass
+        if self.state == State.FALLING:
+            self.world_phys.drop()
+            self.brick.pose.position.z = self.world_phys.brick[2]
+            self.brick.header.stamp = self.get_clock().now().to_msg()
+            self.marker_pub.publish(self.brick)
+            
+        if type(self.world_phys) != type([]):
+            if self.world_phys.brick[2] + .25 <= .25:
+                self.state = State.STOPPED
+                self.brick.pose.position.z = .25
+                self.brick.header.stamp = self.get_clock().now().to_msg()
+                self.marker_pub.publish(self.brick)
 
     def place_callback(self, request, response):
-        self.brick_location = request.brick_location
+        if type(self.world_phys) == type([]):
+            self.world_phys = World([request.brick_location.x,
+                                     request.brick_location.y,
+                                     request.brick_location.z], self.gravity_accel, .35, 1/250)
+        else:
+            self.world_phys.brick = [request.brick_location.x,
+                                     request.brick_location.y,
+                                     request.brick_location.z]
+            
         self.brick.pose.position.x = request.brick_location.x
         self.brick.pose.position.y = request.brick_location.y
         self.brick.pose.position.z = request.brick_location.z
@@ -142,10 +181,13 @@ class Arena(Node):
         self.brick.pose.orientation.w = 0.0
         self.brick.header.stamp = self.get_clock().now().to_msg()
         self.marker_pub.publish(self.brick)
+        self.state = State.PLACED
         return response
 
     def drop_callback(self, request, response):
-        pass
+        if self.state == State.PLACED:
+            self.state = State.FALLING
+        return response
 
 
 

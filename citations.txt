@@ -1,3 +1,4 @@
-Worked with:
+Worked with: Harrison Bounds
 [1] "ros - [ROS2] Any idea on how to pass parameters (YAML) to a Xacro file via launch python script? - Robotics Stack Exchange", Robotics, Available: https://robotics.stackexchange.com/questions/101898/ros2-any-idea-on-how-to-pass-parameters-yaml-to-a-xacro-file-via-launch-pyth. [Accessed 16 October. 2024].
 [2] "ros - Reading from yaml file in xacro? - Robotics Stack Exchange", Robotics, Available: https://robotics.stackexchange.com/questions/101287/reading-from-yaml-file-in-xacro. [Accessed 16 October. 2024].
+[3] "Using Python Class Decorators Effectively", Educative, Available: https://educative.io/blog/python-class-decorators. [Accessed 26 October. 2024].
