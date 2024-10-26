@@ -6,6 +6,7 @@
 
     <node pkg="turtle_brick" exec="arena" >
         <remap from="visualization_marker_array" to="visualization_marker_array" />
+        <remap from="visualization_marker" to="visualization_marker" />
     </node>
 
 </launch>

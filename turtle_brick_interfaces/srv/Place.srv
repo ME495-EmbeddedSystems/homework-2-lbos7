@@ -1,0 +1,2 @@
+geometry_msgs/Point brick_location # Location where the brick should be placed
+---

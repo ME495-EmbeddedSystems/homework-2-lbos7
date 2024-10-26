@@ -11,6 +11,9 @@ Panels:
         - /TF1/Frames1
         - /TF1/Tree1
         - /MarkerArray1/Topic1
+        - /Marker1
+        - /Marker1/Status1
+        - /Marker1/Topic1
       Splitter Ratio: 0.5
     Tree Height: 707
   - Class: rviz_common/Selection
@@ -153,6 +156,19 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: visualization_marker_array
       Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        "": true
+      Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /visualization_marker
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -199,7 +215,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 24.559242248535156
+      Distance: 16.736434936523438
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1

@@ -5,6 +5,9 @@ from geometry_msgs.msg import TransformStamped
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from visualization_msgs.msg import Marker, MarkerArray
+# from physics import World
+from turtle_brick_interfaces.srv import Place
+from std_msgs.msg import Empty
 
 class Arena(Node):
 
@@ -12,9 +15,28 @@ class Arena(Node):
         super().__init__('arena')
         qos = QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
 
+        self.timer = self.create_timer(1/250, self.timer_callback)
         self.marker_pub = self.create_publisher(Marker, 'visualization_marker', qos)
         self.marker_array_pub = self.create_publisher(MarkerArray, 'visualization_marker_array', qos)
+        self.place_service = self.create_service(Place, 'place', self.place_callback)
+        # self.drop_service = self.create_service(Empty, 'drop', self.drop_callback)
 
+        self.brick_location = []
+
+        self.brick = Marker()
+        self.brick.header.frame_id = 'world'
+        self.brick.id = 0
+        self.brick.type = Marker.CUBE
+        self.brick.action = Marker.ADD
+        self.brick.scale.x = .5
+        self.brick.scale.y = .5
+        self.brick.scale.z = .5
+        self.brick.color.r = 1.0
+        self.brick.color.g = 1.0
+        self.brick.color.b = 0.0
+        self.brick.color.a = 1.0
+    
+    
         self.m_west = Marker()
         self.m_west.header.frame_id = 'world'
         self.m_west.id = 1
@@ -105,6 +127,25 @@ class Arena(Node):
         self.m_array.markers = [self.m_west, self.m_east, self.m_north, self.m_south]
         
         self.marker_array_pub.publish(self.m_array)
+
+    def timer_callback(self):
+        pass
+
+    def place_callback(self, request, response):
+        self.brick_location = request.brick_location
+        self.brick.pose.position.x = request.brick_location.x
+        self.brick.pose.position.y = request.brick_location.y
+        self.brick.pose.position.z = request.brick_location.z
+        self.brick.pose.orientation.x = 0.0
+        self.brick.pose.orientation.y = 0.0
+        self.brick.pose.orientation.z = 0.0
+        self.brick.pose.orientation.w = 0.0
+        self.brick.header.stamp = self.get_clock().now().to_msg()
+        self.marker_pub.publish(self.brick)
+        return response
+
+    def drop_callback(self, request, response):
+        pass
 
 
 

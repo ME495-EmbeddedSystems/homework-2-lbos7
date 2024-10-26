@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>ROS 2 interface for working with the Turtle Brick package, turtlesim, rviz2, and tf2</description>
   <maintainer email="loganstuartboswell@gmail.com">Logan Boswell</maintainer>
-  <license>TODO: License declaration</license>
+  <license>GPLv3</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
@@ -15,6 +15,8 @@
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
   <build_depend>rosidl_default_generators</build_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <depend>geometry_msgs</depend>
 
   <member_of_group>rosidl_interface_packages</member_of_group>
   <export>
