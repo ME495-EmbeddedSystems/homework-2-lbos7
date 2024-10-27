@@ -81,7 +81,7 @@
     <joint name="connector_to_platform" type="revolute">
         <parent link="base_platform_connector"/>
         <child link="platform"/>
-        <origin xyz="0 0 ${(platform_height - .05 - (wheel_radius*2 + side_length))/2}"/>
+        <origin xyz="0 0 ${(platform_height - .05 - (wheel_radius*2 + .05 + side_length))/2}"/>
         <limit effort="1000.0" lower="${-pi/4}" upper="${pi/4}" velocity="0.5"/>
         <axis xyz="1 0 0"/>
     </joint>

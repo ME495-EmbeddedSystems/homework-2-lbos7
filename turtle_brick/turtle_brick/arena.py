@@ -2,13 +2,17 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 from geometry_msgs.msg import TransformStamped
+import tf2_ros
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 from visualization_msgs.msg import Marker, MarkerArray
 from turtle_brick.physics import World
 from turtle_brick_interfaces.srv import Place
 from std_srvs.srv import Empty
 from enum import Enum, auto
+import math
 
 class State(Enum):
     """ Current state of the system.
@@ -17,7 +21,8 @@ class State(Enum):
     STOPPED = auto(),
     PLACED = auto(),
     CAUGHT = auto(),
-    FALLING = auto()
+    FALLING = auto(),
+    DROPPING = auto()
 
 class Arena(Node):
 
@@ -29,10 +34,12 @@ class Arena(Node):
         self.declare_parameter('wheel_radius', .15)
         self.declare_parameter('max_velocity', 5.0)
         self.declare_parameter('gravity_accel', 9.81)
+        self.declare_parameter('brick_side_length', .25)
         self.platform_height = self.get_parameter('platform_height').value
         self.wheel_radius = self.get_parameter('wheel_radius').value
         self.max_velocity = self.get_parameter('max_velocity').value
         self.gravity_accel = self.get_parameter('gravity_accel').value
+        self.brick_side_length = self.get_parameter('brick_side_length').value
 
         self.timer = self.create_timer(1/250, self.timer_callback)
         self.marker_pub = self.create_publisher(Marker, 'visualization_marker', qos)
@@ -40,17 +47,24 @@ class Arena(Node):
         self.place_service = self.create_service(Place, 'place', self.place_callback)
         self.drop_service = self.create_service(Empty, 'drop', self.drop_callback)
 
+        self.buffer = Buffer()
+        self.tf_listener = TransformListener(self.buffer, self)
+        self.tf_broadcaster = TransformBroadcaster(self, 10)
+        
+
         self.state = State.STOPPED
         self.world_phys = []
+        self.offset_x = 0.0
+        self.offset_y = 0.0
 
         self.brick = Marker()
         self.brick.header.frame_id = 'world'
         self.brick.id = 0
         self.brick.type = Marker.CUBE
         self.brick.action = Marker.ADD
-        self.brick.scale.x = .5
-        self.brick.scale.y = .5
-        self.brick.scale.z = .5
+        self.brick.scale.x = self.brick_side_length
+        self.brick.scale.y = self.brick_side_length
+        self.brick.scale.z = self.brick_side_length
         self.brick.color.r = 1.0
         self.brick.color.g = 1.0
         self.brick.color.b = 0.0
@@ -149,18 +163,93 @@ class Arena(Node):
         self.marker_array_pub.publish(self.m_array)
 
     def timer_callback(self):
+
+        try:
+            tf_world_base = self.buffer.lookup_transform('world', 'base_link', rclpy.time.Time())
+            tf_world_platform = self.buffer.lookup_transform('world', 'platform', rclpy.time.Time())
+        except tf2_ros.LookupException as e:
+            # the frames don't exist yet
+            self.get_logger().info(f'Lookup exception: {e}')
+        except tf2_ros.ConnectivityException as e:
+            # the tf tree has a disconnection
+            self.get_logger().info(f'Connectivity exception: {e}')
+        except tf2_ros.ExtrapolationException as e:
+            # the times are two far apart to extrapolate
+            self.get_logger().info(f'Extrapolation exception: {e}')
+
         if self.state == State.FALLING:
             self.world_phys.drop()
             self.brick.pose.position.z = self.world_phys.brick[2]
-            self.brick.header.stamp = self.get_clock().now().to_msg()
-            self.marker_pub.publish(self.brick)
-            
-        if type(self.world_phys) != type([]):
-            if self.world_phys.brick[2] + .25 <= .25:
+
+            trans = TransformStamped()
+            trans.header.frame_id = 'world'
+            trans.child_frame_id = 'brick'
+
+            if self.world_phys.brick[2] + self.brick_side_length/2 <= self.brick_side_length/2:
                 self.state = State.STOPPED
-                self.brick.pose.position.z = .25
-                self.brick.header.stamp = self.get_clock().now().to_msg()
-                self.marker_pub.publish(self.brick)
+                self.brick.pose.position.z = self.brick_side_length/2
+            elif (math.dist([self.world_phys.brick[0],
+                            self.world_phys.brick[1]],
+                            [tf_world_base.transform.translation.x, 
+                            tf_world_base.transform.translation.y]) <= self.world_phys.radius) and (self.world_phys.brick[2] + self.brick_side_length/2 <= self.platform_height):
+                self.state = State.CAUGHT
+                self.brick.pose.position.z = self.platform_height + self.brick_side_length/2
+                self.offset_x = self.brick.pose.position.x - tf_world_base.transform.translation.x
+                self.offset_y = self.brick.pose.position.y - tf_world_base.transform.translation.y
+
+            trans.transform.translation.x = self.brick.pose.position.x
+            trans.transform.translation.y = self.brick.pose.position.y
+            trans.transform.translation.z = self.brick.pose.position.z
+
+            time = self.get_clock().now().to_msg()
+            self.brick.header.stamp = time
+            trans.header.stamp = time
+            self.marker_pub.publish(self.brick)
+            self.tf_broadcaster.sendTransform(trans)
+
+        elif self.state == State.PLACED:
+            trans = TransformStamped()
+            trans.header.frame_id = 'world'
+            trans.child_frame_id = 'brick'
+            trans.transform.translation.x = self.brick.pose.position.x
+            trans.transform.translation.y = self.brick.pose.position.y
+            trans.transform.translation.z = self.brick.pose.position.z
+            trans.header.stamp = self.get_clock().now().to_msg()
+            self.tf_broadcaster.sendTransform(trans)
+
+        elif self.state == State.CAUGHT:
+            trans = TransformStamped()
+            trans.header.frame_id = 'world'
+            trans.child_frame_id = 'brick'
+
+            trans.transform.translation.x = tf_world_base.transform.translation.x + self.offset_x
+            trans.transform.translation.y = tf_world_base.transform.translation.y + self.offset_y
+            trans.transform.translation.z = self.brick.pose.position.z
+
+            self.brick.pose.position.x = tf_world_base.transform.translation.x + self.offset_x
+            self.brick.pose.position.y = tf_world_base.transform.translation.y + self.offset_y
+
+            time = self.get_clock().now().to_msg()
+            self.brick.header.stamp = time
+            trans.header.stamp = time
+            self.marker_pub.publish(self.brick)
+            self.tf_broadcaster.sendTransform(trans)
+
+        elif self.state == State.STOPPED:
+            trans = TransformStamped()
+            trans.header.frame_id = 'world'
+            trans.child_frame_id = 'brick'
+            trans.transform.translation.x = self.brick.pose.position.x
+            trans.transform.translation.y = self.brick.pose.position.y
+            trans.transform.translation.z = self.brick.pose.position.z
+            trans.transform.rotation.x = self.brick.pose.orientation.x
+            trans.transform.rotation.y = self.brick.pose.orientation.y
+            trans.transform.rotation.z = self.brick.pose.orientation.z
+            trans.transform.rotation.w = self.brick.pose.orientation.w
+            trans.header.stamp = self.get_clock().now().to_msg()
+            self.tf_broadcaster.sendTransform(trans)
+
+
 
     def place_callback(self, request, response):
         if type(self.world_phys) == type([]):
@@ -179,8 +268,19 @@ class Arena(Node):
         self.brick.pose.orientation.y = 0.0
         self.brick.pose.orientation.z = 0.0
         self.brick.pose.orientation.w = 0.0
-        self.brick.header.stamp = self.get_clock().now().to_msg()
+
+        trans = TransformStamped()
+        trans.header.frame_id = 'world'
+        trans.child_frame_id = 'brick'
+        trans.transform.translation.x = request.brick_location.x
+        trans.transform.translation.y = request.brick_location.y
+        trans.transform.translation.z = request.brick_location.z
+
+        time = self.get_clock().now().to_msg()
+        self.brick.header.stamp = time
+        trans.header.stamp = time
         self.marker_pub.publish(self.brick)
+        self.tf_broadcaster.sendTransform(trans)
         self.state = State.PLACED
         return response
 
