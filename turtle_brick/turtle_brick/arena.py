@@ -54,8 +54,11 @@ class Arena(Node):
 
         self.state = State.STOPPED
         self.world_phys = []
+        self.world_phys_tilted = []
         self.offset_x = 0.0
         self.offset_y = 0.0
+        self.platform_angle = 0.0
+        self.prev_platform_angle = 0.0
 
         self.brick = Marker()
         self.brick.header.frame_id = 'world'
@@ -166,7 +169,7 @@ class Arena(Node):
 
         try:
             tf_world_base = self.buffer.lookup_transform('world', 'base_link', rclpy.time.Time())
-            tf_world_platform = self.buffer.lookup_transform('world', 'platform', rclpy.time.Time())
+            tf_world_brick = self.buffer.lookup_transform('world', 'brick', rclpy.time.Time())
         except tf2_ros.LookupException as e:
             # the frames don't exist yet
             self.get_logger().info(f'Lookup exception: {e}')
@@ -193,6 +196,9 @@ class Arena(Node):
                             [tf_world_base.transform.translation.x, 
                             tf_world_base.transform.translation.y]) <= self.world_phys.radius) and (self.world_phys.brick[2] + self.brick_side_length/2 <= self.platform_height):
                 self.state = State.CAUGHT
+                self.world_phys.brick = [self.world_phys.brick[0],
+                                         self.world_phys.brick[1],
+                                         0]
                 self.brick.pose.position.z = self.platform_height + self.brick_side_length/2
                 self.offset_x = self.brick.pose.position.x - tf_world_base.transform.translation.x
                 self.offset_y = self.brick.pose.position.y - tf_world_base.transform.translation.y
@@ -219,21 +225,47 @@ class Arena(Node):
 
         elif self.state == State.CAUGHT:
             trans = TransformStamped()
-            trans.header.frame_id = 'world'
+            trans.header.frame_id = 'platform'
             trans.child_frame_id = 'brick'
 
-            trans.transform.translation.x = tf_world_base.transform.translation.x + self.offset_x
-            trans.transform.translation.y = tf_world_base.transform.translation.y + self.offset_y
-            trans.transform.translation.z = self.brick.pose.position.z
+            self.prev_platform_angle = self.platform_angle
+            self.platform_angle = 2*math.acos(tf_world_brick.transform.rotation.w)
+            if self.platform_angle != 0.0:
+                if self.platform_angle != self.prev_platform_angle:
+                    self.world_phys_tilted = World([0, 0, 0],
+                                                self.gravity_accel*abs(math.sin(self.platform_angle)),
+                                                .35,
+                                                1/250)
+                    self.world_phys_tilted.drop()
+                else:
+                    self.world_phys_tilted.drop()
 
-            self.brick.pose.position.x = tf_world_base.transform.translation.x + self.offset_x
-            self.brick.pose.position.y = tf_world_base.transform.translation.y + self.offset_y
+                if self.platform_angle > 0:
+                    trans.transform.translation.y = self.offset_y + self.world_phys_tilted.brick[2]
+                else:
+                    trans.transform.translation.y = self.offset_y - self.world_phys_tilted.brick[2]
+            else:
+                trans.transform.translation.y = self.offset_y
+
+            trans.transform.translation.x = self.offset_x
+            trans.transform.translation.z = .05 + self.brick_side_length/2
+
+            self.brick.pose.position.x = tf_world_brick.transform.translation.x
+            self.brick.pose.position.y = tf_world_brick.transform.translation.y
+            self.brick.pose.orientation.x = tf_world_brick.transform.rotation.x
+            self.brick.pose.orientation.y = tf_world_brick.transform.rotation.y
+            self.brick.pose.orientation.z = tf_world_brick.transform.rotation.z
+            self.brick.pose.orientation.w = tf_world_brick.transform.rotation.w
 
             time = self.get_clock().now().to_msg()
             self.brick.header.stamp = time
             trans.header.stamp = time
             self.marker_pub.publish(self.brick)
             self.tf_broadcaster.sendTransform(trans)
+
+            if abs(trans.transform.translation.y) > (.35 + self.brick_side_length/2):
+                self.state = State.STOPPED
+
 
         elif self.state == State.STOPPED:
             trans = TransformStamped()

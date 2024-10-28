@@ -43,4 +43,4 @@ class World:
         Update the brick's location by having it fall in gravity for one timestep
         """
         self.vel += self.gravity*self.dt
-        self.brick_location[2] -= self.vel + self.gravity*(self.dt ** 2)
+        self.brick_location[2] -= self.vel*self.dt + self.gravity*(self.dt ** 2)
