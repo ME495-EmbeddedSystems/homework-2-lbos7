@@ -35,7 +35,7 @@ class Turtle_Robot(Node):
         self.gravity_accel = self.get_parameter('gravity_accel').value
         
 
-        self.tmr = self.create_timer(1/150, self.timer_callback)
+        self.tmr = self.create_timer(1/100, self.timer_callback)
         self.pose_sub = self.create_subscription(Pose, 'pose', self.pose_callback, 10)
         self.goal_pose_sub = self.create_subscription(PoseStamped, 'goal_pose', self.goal_pose_callback, 10)
         self.tilt_sub = self.create_subscription(Tilt, 'tilt', self.tilt_callback, 10)
@@ -83,88 +83,62 @@ class Turtle_Robot(Node):
         joint_state = JointState()
         joint_state.name = ['connector_to_platform', 'base_to_stem', 'stem_to_wheel']
 
-        if type(self.pose) != type([]):
-            if not self.state == State.STOPPED:
+        if self.state == State.MOVING:
+            if self.goalpose.header.frame_id == 'odom':
+                goalpose_x = self.goalpose.pose.position.x + self.start_x
+                goalpose_y = self.goalpose.pose.position.y + self.start_y
+            elif self.goalpose.header.frame_id == 'world':
+                goalpose_x = self.goalpose.pose.position.x
+                goalpose_y = self.goalpose.pose.position.y
 
-                if self.goalpose.header.frame_id == 'odom':
-                    goalpose_x = self.goalpose.pose.position.x + self.start_x
-                    goalpose_y = self.goalpose.pose.position.y + self.start_y
-                elif self.goalpose.header.frame_id == 'world':
-                    goalpose_x = self.goalpose.pose.position.x
-                    goalpose_y = self.goalpose.pose.position.y
+            self.distance_error = math.dist([goalpose_x, goalpose_y], [self.pose.x, self.pose.y])
+            self.stem_ang = math.atan2(goalpose_y - self.pose.y, goalpose_x - self.pose.x)
 
-                self.distance_error = math.dist([goalpose_x, goalpose_y], [self.pose.x, self.pose.y])
-                self.stem_ang = math.atan2(goalpose_y - self.pose.y, goalpose_x - self.pose.x)
+            if self.stem_ang > math.pi:
+                self.stem_ang = self.stem_ang - 2*math.pi
+            elif self.stem_ang < -math.pi:
+                self.stem_ang = 2*math.pi + self.stem_ang
 
-                if self.stem_ang > math.pi:
-                    self.stem_ang = self.stem_ang - 2*math.pi
-                elif self.stem_ang < -math.pi:
-                    self.stem_ang = 2*math.pi + self.stem_ang
+            if type(self.prev_goalpose) == type([]):
+                joint_state.position = [self.tilt_angle,
+                                        self.stem_ang,
+                                        math.dist([self.pose.x, self.pose.y],
+                                                    [self.start_x, self.start_y])/self.wheel_radius]
+            else:
+                if self.prev_goalpose.header.frame_id == 'odom':
+                    prev_goalpose_x = self.prev_goalpose.pose.position.x + self.start_x
+                    prev_goalpose_y = self.prev_goalpose.pose.position.y + self.start_y
+                elif self.prev_goalpose.header.frame_id == 'world':
+                    prev_goalpose_x = self.prev_goalpose.pose.position.x
+                    prev_goalpose_y = self.prev_goalpose.pose.position.y
+                joint_state.position = [self.tilt_angle,
+                                        self.stem_ang,
+                                        math.dist([self.pose.x, self.pose.y],
+                                                    [prev_goalpose_x, prev_goalpose_y])/self.wheel_radius]
 
-                if type(self.prev_goalpose) == type([]):
-                    joint_state.position = [self.tilt_angle,
-                                            self.stem_ang,
-                                            math.dist([self.pose.x, self.pose.y],
-                                                      [self.start_x, self.start_y])/self.wheel_radius]
-                else:
-                    if self.prev_goalpose.header.frame_id == 'odom':
-                        prev_goalpose_x = self.prev_goalpose.pose.position.x + self.start_x
-                        prev_goalpose_y = self.prev_goalpose.pose.position.y + self.start_y
-                    elif self.prev_goalpose.header.frame_id == 'world':
-                        prev_goalpose_x = self.prev_goalpose.pose.position.x
-                        prev_goalpose_y = self.prev_goalpose.pose.position.y
-                    joint_state.position = [self.tilt_angle,
-                                            self.stem_ang,
-                                            math.dist([self.pose.x, self.pose.y],
-                                                      [prev_goalpose_x, prev_goalpose_y])/self.wheel_radius]
-
-                if self.distance_error*self.gain > self.max_velocity:
-                    self.vel_pub.publish(
+            joint_state.header.stamp = self.get_clock().now().to_msg()
+            self.joint_state_pub.publish(joint_state)   
+            self.vel_pub.publish(
                         Twist(linear=Vector3(x=self.max_velocity*math.cos(self.stem_ang),
                                             y=self.max_velocity*math.sin(self.stem_ang)),
                             angular=Vector3(z=0.0)))
-                    joint_state.velocity = [0, 0, self.max_velocity/self.wheel_radius]
-                else:
-                    self.vel_pub.publish(
-                        Twist(linear=Vector3(x=max(self.distance_error*self.gain,
-                                                self.minimum_vel)*math.cos(self.stem_ang),
-                                            y=max(self.distance_error*self.gain,
-                                                self.minimum_vel)*math.sin(self.stem_ang)),
-                            angular=Vector3(z=0.0)))
-                    joint_state.velocity = [0,
-                                            0,
-                                            max(self.distance_error*self.gain, self.minimum_vel)/self.wheel_radius]
-            else:
-                self.vel_pub.publish(
+            
+            if self.distance_error < self.threshold:
+                self.state = State.STOPPED
+        
+        elif self.state == State.STOPPED:
+            self.vel_pub.publish(
                         Twist(linear=Vector3(x=0.0, y=0.0),
                             angular=Vector3(z=0.0)))
-                if type(self.prev_goalpose) == type([]):
-                    joint_state.position = [self.tilt_angle,
-                                            self.stem_ang,
-                                            math.dist([self.pose.x, self.pose.y],
-                                                      [self.start_x, self.start_y])/self.wheel_radius]
-                else:
-                    if self.prev_goalpose.header.frame_id == 'odom':
-                        prev_goalpose_x = self.prev_goalpose.pose.position.x + self.start_x
-                        prev_goalpose_y = self.prev_goalpose.pose.position.y + self.start_y
-                    elif self.prev_goalpose.header.frame_id == 'world':
-                        prev_goalpose_x = self.prev_goalpose.pose.position.x
-                        prev_goalpose_y = self.prev_goalpose.pose.position.y
-                    joint_state.position = [self.tilt_angle,
-                                            self.stem_ang,
-                                            math.dist([self.pose.x, self.pose.y],
-                                                      [prev_goalpose_x, prev_goalpose_y])/self.wheel_radius]
-                joint_state.velocity = [0, 0, 0]
-        else:
-            joint_state.position = [self.tilt_angle, 0, 0]
-
-        if self.distance_error < self.threshold:
-            self.state = State.STOPPED
-
-        time = self.get_clock().now().to_msg()
-        joint_state.header.stamp = time
-        self.joint_state_pub.publish(joint_state)
-
+            joint_state.position = [self.tilt_angle,
+                                    self.stem_ang,
+                                    0]
+            joint_state.header.stamp = self.get_clock().now().to_msg()
+            self.joint_state_pub.publish(joint_state)
+            
+        # joint_state.header.stamp = self.get_clock().now().to_msg()
+        # self.joint_state_pub.publish(joint_state)
+        # self.get_logger().error(str(joint_state.position))
 
     def pose_callback(self, pose):
         """ Updates the self.pose, self.prev_pose, and self.actual_distance variables 

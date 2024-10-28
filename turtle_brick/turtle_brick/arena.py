@@ -170,6 +170,7 @@ class Arena(Node):
         try:
             tf_world_base = self.buffer.lookup_transform('world', 'base_link', rclpy.time.Time())
             tf_world_brick = self.buffer.lookup_transform('world', 'brick', rclpy.time.Time())
+            tf_world_platform = self.buffer.lookup_transform('world', 'platform', rclpy.time.Time())
         except tf2_ros.LookupException as e:
             # the frames don't exist yet
             self.get_logger().info(f'Lookup exception: {e}')
@@ -222,6 +223,7 @@ class Arena(Node):
             trans.transform.translation.z = self.brick.pose.position.z
             trans.header.stamp = self.get_clock().now().to_msg()
             self.tf_broadcaster.sendTransform(trans)
+            self.get_logger().error(str(2*math.acos(tf_world_platform.transform.rotation.w)))
 
         elif self.state == State.CAUGHT:
             trans = TransformStamped()
@@ -229,7 +231,7 @@ class Arena(Node):
             trans.child_frame_id = 'brick'
 
             self.prev_platform_angle = self.platform_angle
-            self.platform_angle = 2*math.acos(tf_world_brick.transform.rotation.w)
+            self.platform_angle = 2*math.acos(tf_world_platform.transform.rotation.w)
             if self.platform_angle != 0.0:
                 if self.platform_angle != self.prev_platform_angle:
                     self.world_phys_tilted = World([0, 0, 0],
