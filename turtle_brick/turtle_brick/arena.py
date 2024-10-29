@@ -284,19 +284,12 @@ class Arena(Node):
 
             self.prev_platform_angle = self.platform_angle
             self.platform_angle = 2*math.acos(tf_world_platform.transform.rotation.w)
-            # self.get_logger().error(str(2*math.acos(tf_world_platform.transform.rotation.w)))
-            # quat_mag = tf_world_platform.transform.rotation.x**2 + tf_world_platform.transform.rotation.y**2 + tf_world_platform.transform.rotation.z**2
-            # angle.
-            # self.get_logger().error(str(angle))
-            # self.platform_angle = angle*tf_world_platform.transform.rotation.x/abs(tf_world_platform.transform.rotation.x)
             if self.platform_angle != 0.0:
                 if self.platform_angle != self.prev_platform_angle:
                     self.world_phys_tilted = World([0, 0, 0],
                                                 self.gravity_accel*math.sin(self.platform_angle),
                                                 .35,
                                                 1/250)
-                    self.get_logger().error(str(self.platform_angle))
-                    self.get_logger().error(str(self.gravity_accel*math.sin(self.platform_angle)))
                     self.world_phys_tilted.drop()
                 else:
                     self.world_phys_tilted.drop()

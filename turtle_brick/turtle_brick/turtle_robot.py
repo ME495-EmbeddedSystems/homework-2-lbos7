@@ -111,6 +111,7 @@ class Turtle_Robot(Node):
         self.gain = 1
         self.minimum_vel = 2.0
         self.threshold = .015
+        self.accum_dist = 0.0
 
         world_odom_tf = TransformStamped()
         world_odom_tf.header.stamp = self.get_clock().now().to_msg()
@@ -161,8 +162,8 @@ class Turtle_Robot(Node):
             if type(self.prev_goalpose) == type([]):
                 joint_state.position = [self.tilt_angle,
                                         self.stem_ang,
-                                        math.dist([self.pose.x, self.pose.y],
-                                                  [self.start_x, self.start_y])/self.wheel_radius]
+                                        (math.dist([self.pose.x, self.pose.y],
+                                                  [self.start_x, self.start_y])/self.wheel_radius) + self.accum_dist]
             else:
                 if self.prev_goalpose.header.frame_id == 'odom':
                     prev_goalpose_x = self.prev_goalpose.pose.position.x + self.start_x
@@ -172,10 +173,10 @@ class Turtle_Robot(Node):
                     prev_goalpose_y = self.prev_goalpose.pose.position.y
                 joint_state.position = [self.tilt_angle,
                                         self.stem_ang,
-                                        math.dist([self.pose.x,
+                                        (math.dist([self.pose.x,
                                                    self.pose.y],
                                                   [prev_goalpose_x,
-                                                   prev_goalpose_y])/self.wheel_radius]
+                                                   prev_goalpose_y])/self.wheel_radius) + self.accum_dist]
 
             joint_state.header.stamp = self.get_clock().now().to_msg()
             self.joint_state_pub.publish(joint_state)   
@@ -187,6 +188,11 @@ class Turtle_Robot(Node):
 
             if self.distance_error < self.threshold:
                 self.state = State.STOPPED
+                if type(self.prev_goalpose) != type([]):
+                    self.accum_dist = math.dist([self.goalpose.pose.position.x,
+                                                 self.goalpose.pose.position.y],
+                                                 [self.prev_goalpose.pose.position.x,
+                                                  self.prev_goalpose.pose.position.y])
 
         elif self.state == State.STOPPED:
             self.vel_pub.publish(
@@ -194,9 +200,10 @@ class Turtle_Robot(Node):
                               angular=Vector3(z=0.0)))
             joint_state.position = [self.tilt_angle,
                                     self.stem_ang,
-                                    0]
+                                    self.accum_dist]
             joint_state.header.stamp = self.get_clock().now().to_msg()
             self.joint_state_pub.publish(joint_state)
+
 
     def pose_callback(self, pose):
         """
