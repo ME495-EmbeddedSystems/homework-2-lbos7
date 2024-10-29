@@ -1,9 +1,10 @@
+"""A node for simulating an arena in rviz."""
+
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, QoSDurabilityPolicy
+from rclpy.qos import QoSDurabilityPolicy, QoSProfile
 from geometry_msgs.msg import TransformStamped
 import tf2_ros
-from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from tf2_ros import TransformBroadcaster
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -14,43 +15,85 @@ from std_srvs.srv import Empty
 from enum import Enum, auto
 import math
 
+
 class State(Enum):
-    """ Current state of the system.
-        Determines what the main timer function should be doing on each iteration
     """
+    Current state of the system.
+
+    Determines what the main timer function should be doing on each iteration
+
+    """
+
     STOPPED = auto(),
     PLACED = auto(),
     CAUGHT = auto(),
     FALLING = auto(),
     DROPPING = auto()
 
+
 class Arena(Node):
+    """
+    Node for simulating evironment in rviz.
+
+    Publishes
+    ---------
+    goal_pose : geometry_msgs/msg/PoseStamped - the goal pose for the robot to move
+    visualization_marker : visualization_msgs/msg/Marker - the brick marker
+    visualization_marker_array : turtle_brick_interfaces/msg/Tilt - the arena walls
+
+    Services
+    ----------
+    place : turtle_brick_interfaces/srv/Place - places a brick in 3D space
+    drop : std_srvs/srv/Empty - drops the current brick
+
+    Parameters
+    ----------
+    platform_height : float64 - the height of the robot's platform
+    wheel_radius : float64 - the radius of the robot's wheel
+    max_velocity : float64 - the maximum velocity at which the robot can travel
+    gravity_accel : float64 - the gravitational acceleration constant
+    brick_side_length : float64 - the side length of the brick marker
+    frequency : float64 - the frequency at which the timer callback is executed
+
+    """
 
     def __init__(self):
         super().__init__('arena')
-        qos = QoSProfile(depth=10, durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
+        qos = QoSProfile(depth=10,
+                         durability=QoSDurabilityPolicy.TRANSIENT_LOCAL)
 
         self.declare_parameter('platform_height', 1.1)
         self.declare_parameter('wheel_radius', .15)
         self.declare_parameter('max_velocity', 5.0)
         self.declare_parameter('gravity_accel', 9.81)
         self.declare_parameter('brick_side_length', .25)
+        self.declare_parameter('frequency', 250)
         self.platform_height = self.get_parameter('platform_height').value
         self.wheel_radius = self.get_parameter('wheel_radius').value
         self.max_velocity = self.get_parameter('max_velocity').value
         self.gravity_accel = self.get_parameter('gravity_accel').value
         self.brick_side_length = self.get_parameter('brick_side_length').value
+        self.frequency = self.get_parameter('frequency').value
 
-        self.timer = self.create_timer(1/250, self.timer_callback)
-        self.marker_pub = self.create_publisher(Marker, 'visualization_marker', qos)
-        self.marker_array_pub = self.create_publisher(MarkerArray, 'visualization_marker_array', qos)
-        self.place_service = self.create_service(Place, 'place', self.place_callback)
-        self.drop_service = self.create_service(Empty, 'drop', self.drop_callback)
+        self.timer = self.create_timer(1/self.frequency, self.timer_callback)
+
+        self.marker_pub = self.create_publisher(Marker,
+                                                'visualization_marker',
+                                                qos)
+        self.m_array_pub = self.create_publisher(MarkerArray,
+                                                 'visualization_marker_array',
+                                                 qos)
+
+        self.place_service = self.create_service(Place,
+                                                 'place',
+                                                 self.place_callback)
+        self.drop_service = self.create_service(Empty,
+                                                'drop',
+                                                self.drop_callback)
 
         self.buffer = Buffer()
         self.tf_listener = TransformListener(self.buffer, self)
         self.tf_broadcaster = TransformBroadcaster(self, 10)
-        
 
         self.state = State.STOPPED
         self.world_phys = []
@@ -72,8 +115,7 @@ class Arena(Node):
         self.brick.color.g = 1.0
         self.brick.color.b = 0.0
         self.brick.color.a = 1.0
-    
-    
+
         self.m_west = Marker()
         self.m_west.header.frame_id = 'world'
         self.m_west.id = 1
@@ -161,27 +203,36 @@ class Arena(Node):
         self.m_south.header.stamp = time
 
         self.m_array = MarkerArray()
-        self.m_array.markers = [self.m_west, self.m_east, self.m_north, self.m_south]
-        
-        self.marker_array_pub.publish(self.m_array)
+        self.m_array.markers = [self.m_west,
+                                self.m_east,
+                                self.m_north,
+                                self.m_south]
+
+        self.m_array_pub.publish(self.m_array)
 
     def timer_callback(self):
+        """
+        Timer callback for managing rviz environment.
 
+        Publishes commands at a set frequency paramter (commands vary based on
+        arena state)
+
+        """
         try:
-            tf_world_base = self.buffer.lookup_transform('world', 'base_link', rclpy.time.Time())
-            tf_world_brick = self.buffer.lookup_transform('world', 'brick', rclpy.time.Time())
-            tf_world_platform = self.buffer.lookup_transform('world', 'platform', rclpy.time.Time())
-        except tf2_ros.LookupException as e:
-            # the frames don't exist yet
-            # self.get_logger().info(f'Lookup exception: {e}')
+            tf_world_base = self.buffer.lookup_transform('world',
+                                                         'base_link',
+                                                         rclpy.time.Time())
+            tf_world_brick = self.buffer.lookup_transform('world',
+                                                          'brick',
+                                                          rclpy.time.Time())
+            tf_world_platform = self.buffer.lookup_transform('world',
+                                                             'platform',
+                                                             rclpy.time.Time())
+        except tf2_ros.LookupException:
             pass
-        except tf2_ros.ConnectivityException as e:
-            # the tf tree has a disconnection
-            # self.get_logger().info(f'Connectivity exception: {e}')
+        except tf2_ros.ConnectivityException:
             pass
-        except tf2_ros.ExtrapolationException as e:
-            # the times are two far apart to extrapolate
-            # self.get_logger().info(f'Extrapolation exception: {e}')
+        except tf2_ros.ExtrapolationException:
             pass
 
         if self.state == State.FALLING:
@@ -192,13 +243,15 @@ class Arena(Node):
             trans.header.frame_id = 'world'
             trans.child_frame_id = 'brick'
 
-            if self.world_phys.brick[2] + self.brick_side_length/2 <= self.brick_side_length/2:
+            check = self.world_phys.brick[2] + self.brick_side_length/2
+            brick_dist = math.dist([self.world_phys.brick[0],
+                                    self.world_phys.brick[1]],
+                                   [tf_world_base.transform.translation.x,
+                                    tf_world_base.transform.translation.y])
+            if check <= self.brick_side_length/2:
                 self.state = State.STOPPED
                 self.brick.pose.position.z = self.brick_side_length/2
-            elif (math.dist([self.world_phys.brick[0],
-                            self.world_phys.brick[1]],
-                            [tf_world_base.transform.translation.x, 
-                            tf_world_base.transform.translation.y]) <= self.world_phys.radius) and (self.world_phys.brick[2] + self.brick_side_length/2 <= self.platform_height):
+            elif (brick_dist <= self.world_phys.radius) and (self.world_phys.brick[2] + self.brick_side_length/2 <= self.platform_height):
                 self.state = State.CAUGHT
                 self.brick.pose.position.z = self.platform_height + self.brick_side_length/2
                 self.offset_x = self.brick.pose.position.x - tf_world_base.transform.translation.x
@@ -274,11 +327,8 @@ class Arena(Node):
                                     tf_world_brick.transform.translation.y],
                                     [tf_world_platform.transform.translation.x,
                                     tf_world_platform.transform.translation.y])
-
             if brick_dist > (.35 + self.brick_side_length/2):
                 self.state = State.STOPPED
-
-
         elif self.state == State.STOPPED:
             trans = TransformStamped()
             trans.header.frame_id = 'world'
@@ -293,9 +343,23 @@ class Arena(Node):
             trans.header.stamp = self.get_clock().now().to_msg()
             self.tf_broadcaster.sendTransform(trans)
 
-
-
     def place_callback(self, request, response):
+        """
+        Place callback function for placing bricks.
+
+        Places a brick at a specified position in 3D space
+
+        Args:
+        ----
+        request : the brick_location field contains a point dictionary with x,
+        y, and z components
+        response : (Empty) - place response
+
+        Return:
+        ------
+        response : (Empty) - place response
+
+        """
         if type(self.world_phys) == type([]):
             self.world_phys = World([request.brick_location.x,
                                      request.brick_location.y,
@@ -333,14 +397,27 @@ class Arena(Node):
         return response
 
     def drop_callback(self, request, response):
+        """
+        Drop callback for the dropping bricks.
+
+        Drops the brick marker
+
+        Args:
+        ----
+        request : (Empty) - drop request
+        response : (Empty) - drop response
+
+        Return:
+        ------
+        response : (Empty) - drop response
+
+        """
         if self.state == State.PLACED:
             self.state = State.FALLING
         return response
 
 
-
 def main(args=None):
-
     """Entrypoint for the arena ROS node."""
     rclpy.init(args=args)
     node = Arena()
