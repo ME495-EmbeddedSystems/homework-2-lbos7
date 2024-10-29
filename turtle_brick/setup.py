@@ -15,7 +15,7 @@ setup(
                                    'launch/run_turtle.launch.xml',
                                    'launch/run_turtle.launch.py',
                                    'launch/turtle_arena.launch.xml',
-                                   'launch/turtle_arena.launch.py'
+                                   'launch/turtle_arena.launch.py',
                                    'urdf/turtle.urdf.xacro',
                                    'config/view_robot.rviz',
                                    'config/turtle.yaml']),

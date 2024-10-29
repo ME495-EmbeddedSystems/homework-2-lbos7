@@ -1,0 +1,5 @@
+from turtle_brick.physics import World
+
+def test_physics_gravity():
+  phys = World([1.0, 1.0, 1.0], 1.0, 1.0, 1.0)
+  assert phys.gravity == 1.0
