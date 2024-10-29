@@ -1,7 +1,7 @@
 # ME495 Embedded Systems Homework 2
 Author: Logan Boswell
 
-This package uses turtlesim to drive a robot in rviz to catch a brick, if it is able to.
+This package uses turtlesim to drive a robot in rviz to catch a brick, if it's able to reach the brick in time.
 
 ## Quickstart
 1. Use `ros2 launch turtle_brick turtle_arena.launch.xml` to start the arena and turtle simulation
