@@ -88,7 +88,7 @@ class Arena(Node):
         self.m_west.pose.orientation.x = 0.0
         self.m_west.pose.orientation.y = 0.0
         self.m_west.pose.orientation.z = 0.0
-        self.m_west.pose.orientation.w = 0.0
+        self.m_west.pose.orientation.w = 1.0
         self.m_west.color.r = 1.0
         self.m_west.color.g = 1.0
         self.m_west.color.b = 1.0
@@ -108,7 +108,7 @@ class Arena(Node):
         self.m_east.pose.orientation.x = 0.0
         self.m_east.pose.orientation.y = 0.0
         self.m_east.pose.orientation.z = 0.0
-        self.m_east.pose.orientation.w = 0.0
+        self.m_east.pose.orientation.w = 1.0
         self.m_east.color.r = 1.0
         self.m_east.color.g = 1.0
         self.m_east.color.b = 1.0
@@ -128,7 +128,7 @@ class Arena(Node):
         self.m_north.pose.orientation.x = 0.0
         self.m_north.pose.orientation.y = 0.0
         self.m_north.pose.orientation.z = 0.0
-        self.m_north.pose.orientation.w = 0.0
+        self.m_north.pose.orientation.w = 1.0
         self.m_north.color.r = 1.0
         self.m_north.color.g = 1.0
         self.m_north.color.b = 1.0
@@ -148,7 +148,7 @@ class Arena(Node):
         self.m_south.pose.orientation.x = 0.0
         self.m_south.pose.orientation.y = 0.0
         self.m_south.pose.orientation.z = 0.0
-        self.m_south.pose.orientation.w = 0.0
+        self.m_south.pose.orientation.w = 1.0
         self.m_south.color.r = 1.0
         self.m_south.color.g = 1.0
         self.m_south.color.b = 1.0
@@ -173,13 +173,16 @@ class Arena(Node):
             tf_world_platform = self.buffer.lookup_transform('world', 'platform', rclpy.time.Time())
         except tf2_ros.LookupException as e:
             # the frames don't exist yet
-            self.get_logger().info(f'Lookup exception: {e}')
+            # self.get_logger().info(f'Lookup exception: {e}')
+            pass
         except tf2_ros.ConnectivityException as e:
             # the tf tree has a disconnection
-            self.get_logger().info(f'Connectivity exception: {e}')
+            # self.get_logger().info(f'Connectivity exception: {e}')
+            pass
         except tf2_ros.ExtrapolationException as e:
             # the times are two far apart to extrapolate
-            self.get_logger().info(f'Extrapolation exception: {e}')
+            # self.get_logger().info(f'Extrapolation exception: {e}')
+            pass
 
         if self.state == State.FALLING:
             self.world_phys.drop()
@@ -197,9 +200,6 @@ class Arena(Node):
                             [tf_world_base.transform.translation.x, 
                             tf_world_base.transform.translation.y]) <= self.world_phys.radius) and (self.world_phys.brick[2] + self.brick_side_length/2 <= self.platform_height):
                 self.state = State.CAUGHT
-                self.world_phys.brick = [self.world_phys.brick[0],
-                                         self.world_phys.brick[1],
-                                         0]
                 self.brick.pose.position.z = self.platform_height + self.brick_side_length/2
                 self.offset_x = self.brick.pose.position.x - tf_world_base.transform.translation.x
                 self.offset_y = self.brick.pose.position.y - tf_world_base.transform.translation.y
@@ -223,7 +223,6 @@ class Arena(Node):
             trans.transform.translation.z = self.brick.pose.position.z
             trans.header.stamp = self.get_clock().now().to_msg()
             self.tf_broadcaster.sendTransform(trans)
-            self.get_logger().error(str(2*math.acos(tf_world_platform.transform.rotation.w)))
 
         elif self.state == State.CAUGHT:
             trans = TransformStamped()
@@ -232,20 +231,25 @@ class Arena(Node):
 
             self.prev_platform_angle = self.platform_angle
             self.platform_angle = 2*math.acos(tf_world_platform.transform.rotation.w)
+            # self.get_logger().error(str(2*math.acos(tf_world_platform.transform.rotation.w)))
+            # quat_mag = tf_world_platform.transform.rotation.x**2 + tf_world_platform.transform.rotation.y**2 + tf_world_platform.transform.rotation.z**2
+            # angle.
+            # self.get_logger().error(str(angle))
+            # self.platform_angle = angle*tf_world_platform.transform.rotation.x/abs(tf_world_platform.transform.rotation.x)
             if self.platform_angle != 0.0:
                 if self.platform_angle != self.prev_platform_angle:
                     self.world_phys_tilted = World([0, 0, 0],
-                                                self.gravity_accel*abs(math.sin(self.platform_angle)),
+                                                self.gravity_accel*math.sin(self.platform_angle),
                                                 .35,
                                                 1/250)
+                    self.get_logger().error(str(self.platform_angle))
+                    self.get_logger().error(str(self.gravity_accel*math.sin(self.platform_angle)))
                     self.world_phys_tilted.drop()
                 else:
                     self.world_phys_tilted.drop()
 
-                if self.platform_angle > 0:
-                    trans.transform.translation.y = self.offset_y + self.world_phys_tilted.brick[2]
-                else:
-                    trans.transform.translation.y = self.offset_y - self.world_phys_tilted.brick[2]
+                trans.transform.translation.y = self.offset_y + self.world_phys_tilted.brick[2]
+
             else:
                 trans.transform.translation.y = self.offset_y
 
@@ -254,6 +258,7 @@ class Arena(Node):
 
             self.brick.pose.position.x = tf_world_brick.transform.translation.x
             self.brick.pose.position.y = tf_world_brick.transform.translation.y
+            self.brick.pose.position.z = tf_world_brick.transform.translation.z
             self.brick.pose.orientation.x = tf_world_brick.transform.rotation.x
             self.brick.pose.orientation.y = tf_world_brick.transform.rotation.y
             self.brick.pose.orientation.z = tf_world_brick.transform.rotation.z
@@ -265,7 +270,12 @@ class Arena(Node):
             self.marker_pub.publish(self.brick)
             self.tf_broadcaster.sendTransform(trans)
 
-            if abs(trans.transform.translation.y) > (.35 + self.brick_side_length/2):
+            brick_dist = math.dist([tf_world_brick.transform.translation.x,
+                                    tf_world_brick.transform.translation.y],
+                                    [tf_world_platform.transform.translation.x,
+                                    tf_world_platform.transform.translation.y])
+
+            if brick_dist > (.35 + self.brick_side_length/2):
                 self.state = State.STOPPED
 
 
@@ -301,7 +311,7 @@ class Arena(Node):
         self.brick.pose.orientation.x = 0.0
         self.brick.pose.orientation.y = 0.0
         self.brick.pose.orientation.z = 0.0
-        self.brick.pose.orientation.w = 0.0
+        self.brick.pose.orientation.w = 1.0
 
         trans = TransformStamped()
         trans.header.frame_id = 'world'
@@ -309,6 +319,10 @@ class Arena(Node):
         trans.transform.translation.x = request.brick_location.x
         trans.transform.translation.y = request.brick_location.y
         trans.transform.translation.z = request.brick_location.z
+        trans.transform.rotation.x = 0.0
+        trans.transform.rotation.y = 0.0
+        trans.transform.rotation.z = 0.0
+        trans.transform.rotation.w = 1.0
 
         time = self.get_clock().now().to_msg()
         self.brick.header.stamp = time

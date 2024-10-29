@@ -60,7 +60,7 @@ class Turtle_Robot(Node):
         self.distance_error = 0.0
         self.gain = 1
         self.minimum_vel = 2.0
-        self.threshold = .05
+        self.threshold = .015
 
         world_odom_tf = TransformStamped()
         world_odom_tf.header.stamp = self.get_clock().now().to_msg()
@@ -75,7 +75,7 @@ class Turtle_Robot(Node):
         odom_base_tf.header.stamp = self.get_clock().now().to_msg()
         odom_base_tf.header.frame_id = 'odom'
         odom_base_tf.child_frame_id = 'base_link'
-        self.static_tf_broadcaster.sendTransform(odom_base_tf)
+        self.tf_broadcaster.sendTransform(odom_base_tf)
 
 
     def timer_callback(self):
@@ -136,9 +136,6 @@ class Turtle_Robot(Node):
             joint_state.header.stamp = self.get_clock().now().to_msg()
             self.joint_state_pub.publish(joint_state)
             
-        # joint_state.header.stamp = self.get_clock().now().to_msg()
-        # self.joint_state_pub.publish(joint_state)
-        # self.get_logger().error(str(joint_state.position))
 
     def pose_callback(self, pose):
         """ Updates the self.pose, self.prev_pose, and self.actual_distance variables 

@@ -10,4 +10,11 @@
         <param from="$(find-pkg-share turtle_brick)/turtle.yaml"/>
     </node>
 
+    <node pkg="turtle_brick" exec="catcher" >
+        <remap from="visualization_marker" to="visualization_marker" />
+        <remap from="goal_pose" to="goal_pose"/>
+        <remap from="tilt" to="tilt"/>
+        <param from="$(find-pkg-share turtle_brick)/turtle.yaml"/>
+    </node>
+
 </launch>
