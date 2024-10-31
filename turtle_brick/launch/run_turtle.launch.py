@@ -1,26 +1,28 @@
 """Run the turtle robot in rviz."""
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.substitutions import Command, EqualsSubstitution, IfElseSubstitution, LaunchConfiguration, PathJoinSubstitution
+from launch.actions import IncludeLaunchDescription
+from launch.substitutions import PathJoinSubstitution
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
-from launch_ros.substitutions import ExecutableInPackage, FindPackageShare
+from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     return LaunchDescription([
         IncludeLaunchDescription(
-            
+            PythonLaunchDescriptionSource([
+                PathJoinSubstitution([FindPackageShare("turtle_brick"), "show_turtle.launch.py"])
+            ]),
+            launch_arguments={"use_jsp": "none"}.items()
         ),
         Node(
             package="turtlesim",
             executable="turtlesim_node",
-            parameters=[
-                {"holonomic" : "True"}
-            ]
+            parameters=[{"holonomic" : True}]
         ),
         Node(
             package="turtle_brick",
-            executable="arena",
+            executable="turtle_robot",
             remappings=[("cmd_vel", "turtle1/cmd_vel"),
                         ("pose", "turtle1/pose"),
                         ("joint_states", "joint_states"),
@@ -28,7 +30,7 @@ def generate_launch_description():
                         ("tilt", "tilt")],
             parameters=[PathJoinSubstitution(
                               [FindPackageShare("turtle_brick"),
-                              "turtle.urdf.xacro"
+                              "turtle.yaml"
                                ])]
         )
         ])

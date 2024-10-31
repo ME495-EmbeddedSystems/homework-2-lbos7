@@ -5,6 +5,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.substitutions import Command, EqualsSubstitution, IfElseSubstitution, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import ExecutableInPackage, FindPackageShare
+from launch.conditions import UnlessCondition
 
 def generate_launch_description():
     return LaunchDescription([
@@ -16,33 +17,24 @@ def generate_launch_description():
                 {"robot_description" :
                  Command([ExecutableInPackage("xacro", "xacro"), " ",
                           PathJoinSubstitution(
-                              #A plain urdf file is also a valid xacro file so we use xacro here for convenience only
                               [FindPackageShare("turtle_brick"),
                               "turtle.urdf.xacro"
                                ])])}
             ]
         ),
         Node(
-            package=IfElseSubstitution(
-                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "gui"),
+            condition=UnlessCondition(EqualsSubstitution(LaunchConfiguration("use_jsp"), "none")),
+            package=IfElseSubstitution(EqualsSubstitution(LaunchConfiguration("use_jsp"), "gui"),
                         if_value="joint_state_publisher_gui",
-                        else_value=IfElseSubstitution(
-                                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "jsp"),
-                                        if_value="joint_state_publisher"
-                                        )
+                        else_value="joint_state_publisher"
                         ),
-            executable=IfElseSubstitution(
-                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "gui"),
+            executable=IfElseSubstitution(EqualsSubstitution(LaunchConfiguration("use_jsp"), "gui"),
                         if_value="joint_state_publisher_gui",
-                        else_value=IfElseSubstitution(
-                                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "jsp"),
-                                        if_value="joint_state_publisher"
-                                        )
+                        else_value="joint_state_publisher"
                         )
         ),
         Node(
             package="rviz2",
             executable="rviz2",
             arguments=["-d", PathJoinSubstitution([FindPackageShare("turtle_brick"), "view_robot.rviz"])]
-        )
-        ])
+        )])

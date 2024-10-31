@@ -1,48 +1,39 @@
-"""Display the turtle in rviz."""
+"""Display the turtle in rviz and catch a brick."""
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import Command, EqualsSubstitution, IfElseSubstitution, LaunchConfiguration, PathJoinSubstitution
+from launch.actions import IncludeLaunchDescription
+from launch.substitutions import PathJoinSubstitution
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
-from launch_ros.substitutions import ExecutableInPackage, FindPackageShare
+from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument("use_jsp", default_value='gui', description="Which method of publishing joints: 'gui' (default), 'jsp', or 'none'"),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource([
+                PathJoinSubstitution([FindPackageShare("turtle_brick"),
+                                      "run_turtle.launch.py"])
+            ])
+        ),
         Node(
-            package="robot_state_publisher",
-            executable="robot_state_publisher",
-            parameters=[
-                {"robot_description" :
-                 Command([ExecutableInPackage("xacro", "xacro"), " ",
-                          PathJoinSubstitution(
-                              #A plain urdf file is also a valid xacro file so we use xacro here for convenience only
+            package="turtle_brick",
+            executable="arena",
+            remappings=[("visualization_marker", "visualization_marker"),
+                        ("visualization_marker_array", "visualization_marker_array")],
+            parameters=[PathJoinSubstitution(
                               [FindPackageShare("turtle_brick"),
-                              "turtle.urdf.xacro"
-                               ])])}
-            ]
+                              "turtle.yaml"
+                               ])]
         ),
         Node(
-            package=IfElseSubstitution(
-                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "gui"),
-                        if_value="joint_state_publisher_gui",
-                        else_value=IfElseSubstitution(
-                                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "jsp"),
-                                        if_value="joint_state_publisher"
-                                        )
-                        ),
-            executable=IfElseSubstitution(
-                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "gui"),
-                        if_value="joint_state_publisher_gui",
-                        else_value=IfElseSubstitution(
-                                        EqualsSubstitution(LaunchConfiguration("use_jsp"), "jsp"),
-                                        if_value="joint_state_publisher"
-                                        )
-                        )
-        ),
-        Node(
-            package="rviz2",
-            executable="rviz2",
-            arguments=["-d", PathJoinSubstitution([FindPackageShare("turtle_brick"), "view_robot.rviz"])]
+            package="turtle_brick",
+            executable="catcher",
+            remappings=[("visualization_marker", "visualization_marker"),
+                        ("goal_pose", "goal_pose"),
+                        ("tilt", "tilt")],
+            parameters=[PathJoinSubstitution(
+                              [FindPackageShare("turtle_brick"),
+                              "turtle.yaml"
+                               ])]
         )
         ])
