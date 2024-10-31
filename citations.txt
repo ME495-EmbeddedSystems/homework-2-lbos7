@@ -4,3 +4,4 @@ Worked with: Harrison Bounds
 [3] "Using Python Class Decorators Effectively", Educative, Available: https://educative.io/blog/python-class-decorators. [Accessed 26 October. 2024].
 [4] Andrew Kwolek - Explained how to fix issue I was having with publishing joint states [28 October. 2024]
 [5] "", Answers, Available: https://answers.ros.org/question/306935/ros2-include-a-launch-file-from-a-launch-file/. [Accessed 29 October. 2024].
+[6] Harrison Bounds - Helped me get my python launchfiles working. [30 October. 2024]

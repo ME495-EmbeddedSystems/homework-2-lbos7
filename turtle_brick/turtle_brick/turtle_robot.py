@@ -4,10 +4,12 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSDurabilityPolicy
 from turtlesim.msg import Pose
-from geometry_msgs.msg import Twist, Vector3, PoseStamped, TransformStamped
+import geometry_msgs.msg
+from geometry_msgs.msg import Twist, Vector3, PoseStamped, TransformStamped, PoseWithCovariance, TwistWithCovariance, Point
 from nav_msgs.msg import Odometry
 from turtle_brick_interfaces.msg import Tilt
 from sensor_msgs.msg import JointState
+from std_msgs.msg import Header
 from tf2_ros import TransformBroadcaster
 from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 from enum import Enum, auto
@@ -181,10 +183,27 @@ class Turtle_Robot(Node):
             joint_state.header.stamp = self.get_clock().now().to_msg()
             self.joint_state_pub.publish(joint_state)   
             self.vel_pub.publish(
-                        Twist(linear=Vector3(
-                            x=self.max_velocity*math.cos(self.stem_ang),
-                            y=self.max_velocity*math.sin(self.stem_ang)),
-                            angular=Vector3(z=0.0)))
+                Twist(linear=Vector3(
+                    x=self.max_velocity*math.cos(self.stem_ang),
+                    y=self.max_velocity*math.sin(self.stem_ang)),
+                    angular=Vector3(z=0.0)))
+            if type(self.pose) != type([]):
+                self.odom_pub.publish(
+                    Odometry(header=Header(
+                        stamp=self.get_clock().now().to_msg(),
+                        frame_id="odom"),
+                        child_frame_id = "base_link",
+                        pose=PoseWithCovariance(
+                            pose=geometry_msgs.msg.Pose(
+                                position=Point(
+                                    x=self.pose.x,
+                                    y=self.pose.y))),
+                        twist=TwistWithCovariance(
+                            twist=Twist(
+                                linear=Vector3(
+                                    x=self.max_velocity*math.cos(self.stem_ang),
+                                    y=self.max_velocity*math.sin(self.stem_ang)),
+                                angular=Vector3(z=0.0)))))
 
             if self.distance_error < self.threshold:
                 self.state = State.STOPPED
@@ -198,6 +217,22 @@ class Turtle_Robot(Node):
             self.vel_pub.publish(
                         Twist(linear=Vector3(x=0.0, y=0.0),
                               angular=Vector3(z=0.0)))
+            if type(self.pose) != type([]):
+                Odometry(header=Header(
+                        stamp=self.get_clock().now().to_msg(),
+                        frame_id="odom"),
+                        child_frame_id = "base_link",
+                        pose=PoseWithCovariance(
+                            pose=geometry_msgs.msg.Pose(
+                                position=Point(
+                                    x=self.pose.x,
+                                    y=self.pose.y))),
+                        twist=TwistWithCovariance(
+                            twist=Twist(
+                                linear=Vector3(
+                                    x=0.0,
+                                    y=0.0),
+                                angular=Vector3(z=0.0))))
             joint_state.position = [self.tilt_angle,
                                     self.stem_ang,
                                     self.accum_dist]

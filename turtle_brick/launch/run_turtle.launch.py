@@ -11,7 +11,8 @@ def generate_launch_description():
     return LaunchDescription([
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
-                PathJoinSubstitution([FindPackageShare("turtle_brick"), "show_turtle.launch.py"])
+                PathJoinSubstitution([FindPackageShare("turtle_brick"),
+                                      "show_turtle.launch.py"])
             ]),
             launch_arguments={"use_jsp": "none"}.items()
         ),
