@@ -196,8 +196,8 @@ class Turtle_Robot(Node):
                         pose=PoseWithCovariance(
                             pose=geometry_msgs.msg.Pose(
                                 position=Point(
-                                    x=self.pose.x,
-                                    y=self.pose.y))),
+                                    x=(self.pose.x - self.start_x),
+                                    y=(self.pose.y - self.start_y)))),
                         twist=TwistWithCovariance(
                             twist=Twist(
                                 linear=Vector3(
@@ -225,8 +225,8 @@ class Turtle_Robot(Node):
                         pose=PoseWithCovariance(
                             pose=geometry_msgs.msg.Pose(
                                 position=Point(
-                                    x=self.pose.x,
-                                    y=self.pose.y))),
+                                    x=(self.pose.x - self.start_x),
+                                    y=(self.pose.y - self.start_y)))),
                         twist=TwistWithCovariance(
                             twist=Twist(
                                 linear=Vector3(
