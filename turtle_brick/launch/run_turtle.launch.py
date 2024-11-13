@@ -10,7 +10,7 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
     return LaunchDescription([
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
+            PythonLaunchDescriptionSource([ # unnecessary
                 PathJoinSubstitution([FindPackageShare("turtle_brick"),
                                       "show_turtle.launch.py"])
             ]),
